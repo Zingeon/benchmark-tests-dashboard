@@ -1,0 +1,125 @@
+{{> header}}
+
+<h2>{{name}} Automated Benchmark Tests</h2>
+<div id="{{type}}-list"></div>
+
+<div>
+    <button id="runTest" type="submit" class="primary-button pure-button">Run</button>
+    <a class="primary-button pure-button" href="/{{type}}/run">Run and generate report</a>
+</div>
+
+<script>
+    let table = new Tabulator("#{{type}}-list", {
+        ajaxURL: '/{{type}}/list',
+        ajaxProgressiveLoadDelay: 200,
+        layout: "fitColumns",
+        index: "name",
+        resizableColumns: true,
+        columns: [
+            {title: "Name", field: "name", headerFilter: "input"},
+            {title: "URI", field: "uri", headerFilter: "input", width: 500},
+            {
+                title: "Status",
+                field: "status",
+                formatter: function (cell) {
+                    return cell.getValue() || 'No started';
+                },
+            },
+            {
+                title: "Response time",
+                field: "responseTime",
+                formatter: function (cell) {
+                    return cell.getValue() || '-';
+                },
+            },
+            {
+                formatter: function (cell) {
+                    return "<i class='fa fa-pencil-square-o' aria-hidden='true'></i>"
+                },
+                cellClick: function (e, cell) {
+                    let data = cell.getData();
+                    let editUri = '/{{type}}?name=' + data.name;
+
+                    window.location.assign(editUri);
+                },
+                width: 30,
+            },
+            {
+                formatter: "buttonCross",
+                cellClick: function (e, cell) {
+                    if (!confirm('Are you sure to delete?')) {
+                        return;
+                    }
+
+                    let data = cell.getData();
+
+                    axios.delete('/{{type}}', {params: {name: data.name}})
+                            .then(res => {
+                                console.log(res);
+                                if (res.status === 200) {
+                                    location.reload();
+
+                                    return;
+                                }
+                                console.log(res.status);
+                            });
+                },
+                width: 30,
+            },
+        ],
+        dataLoaded: async function (data) {
+            runTest.onclick = async () => {
+                await processBenchmarkTests(data);
+            }
+        },
+    });
+
+    async function performRequest(item) {
+        table.updateData([{
+            "name": item.name,
+            "status": 'In Progress',
+            "responseTime": "..."
+        }]);
+        await axios.get('/{{type}}/benchmark', {params: {name: item.name}})
+                .then(function (response) {
+                    table.updateData([{
+                        "name": item.name,
+                        "status": 'Done',
+                        "responseTime": response.data.responseTime  + ' ms'
+                    }]);
+                })
+                .catch(err => {
+                    table.updateData([{
+                        "name": item.name,
+                        "status": 'Failed',
+                        "responseTime": '-'
+                    }]);
+                    console.log(err)
+                });
+    }
+
+    async function processBenchmarkTests(data) {
+        for (const row of data) {
+            await performRequest(row);
+        }
+    }
+</script>
+
+<h2>{{formTitle}}</h2>
+<form action="" method="post" class="pure-form pure-form-stacked">
+    <fieldset>
+        <div class="pure-control-group">
+            <label>
+                Name:
+                <input name="name" type="text" class="pure-input-1" value="{{selectedUri.name}}"/>
+            </label>
+        </div>
+        <div class="pure-control-group">
+            <label>
+                URI:
+                <input name="uri" type="text" class="pure-input-1" value="{{selectedUri.uri}}"/>
+            </label>
+        </div>
+    </fieldset>
+    <button type="submit" class="primary-button pure-button">Save</button>
+</form>
