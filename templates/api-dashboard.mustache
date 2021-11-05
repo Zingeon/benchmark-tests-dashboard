@@ -1,0 +1,148 @@
+{{> header}}
+
+<h2>API Automated Benchmark Tests</h2>
+<div id="api-list"></div>
+
+<div>
+    <button id="runTest" type="submit" class="primary-button pure-button">Run</button>
+    <a class="primary-button pure-button" href="/api/run">Run and generate report</a>
+</div>
+
+<script>
+    let table = new Tabulator("#api-list", {
+        ajaxURL: '/api/list',
+        ajaxProgressiveLoadDelay: 200,
+        layout: "fitColumns",
+        index: "name",
+        resizableColumns: true,
+        columns: [
+            {title: "Name", field: "name", headerFilter: "input"},
+            {title: "URI", field: "uri", headerFilter: "input", width: 500},
+            {
+                title: "Status",
+                field: "status",
+                formatter: function (cell) {
+                    return cell.getValue() || 'No started';
+                },
+            },
+            {
+                title: "Response time",
+                field: "responseTime",
+                formatter: function (cell) {
+                    return cell.getValue() || '-';
+                },
+            },
+            {
+                formatter: function (cell) {
+                    return "<i class='fa fa-pencil-square-o' aria-hidden='true'></i>"
+                },
+                cellClick: function (e, cell) {
+                    let data = cell.getData();
+                    let editUri = '/api?name=' + data.name;
+
+                    window.location.assign(editUri);
+                },
+                width: 30,
+            },
+            {
+                formatter: "buttonCross",
+                cellClick: function (e, cell) {
+                    if (!confirm('Are you sure to delete?')) {
+                        return;
+                    }
+
+                    let data = cell.getData();
+
+                    axios.delete('/api', {params: {name: data.name}})
+                            .then(res => {
+                                console.log(res);
+                                if (res.status === 200) {
+                                    location.reload();
+
+                                    return;
+                                }
+                                console.log(res.status);
+                            });
+                },
+                width: 30,
+            },
+        ],
+        dataLoaded: async function (data) {
+            runTest.onclick = async () => {
+                await authenticateCustomerRequest()
+                        .then(async function (response) {
+                            if (!response.data.accessToken) {
+                                throw "Failed to authenticate customer";
+                            }
+                            await processBenchmarkTests(data);
+                        })
+                        .catch(err => {
+                            console.log(err)
+                        });
+            }
+        },
+    });
+
+    async function authenticateCustomerRequest() {
+        return await axios.post('/frontend/customer/access-token');
+    }
+
+    async function performRequest(item) {
+        table.updateData([{
+            "name": item.name,
+            "status": 'In Progress',
+            "responseTime": "..."
+        }]);
+        await axios.get('/api/benchmark', {params: {name: item.name}})
+                .then(function (response) {
+                    table.updateData([{
+                        "name": item.name,
+                        "status": 'Done',
+                        "responseTime": response.data.responseTime + ' ms'
+                    }]);
+                })
+                .catch(err => {
+                    table.updateData([{
+                        "name": item.name,
+                        "status": 'Failed',
+                        "responseTime": '-'
+                    }]);
+                    console.log(err)
+                });
+    }
+
+    async function processBenchmarkTests(data) {
+        for (const row of data) {
+            await performRequest(row);
+        }
+    }
+</script>
+
+<h2>{{formTitle}}</h2>
+<form action="" method="post" class="pure-form pure-form-stacked">
+    <fieldset>
+        <!--        <div class="pure-control-group">-->
+        <!--            <label>-->
+        <!--                Name:-->
+        <!--                <input name="name" type="text" class="pure-input-1" value="{{selectedUri.name}}"/>-->
+        <!--            </label>-->
+        <!--        </div>-->
+        <legend>Type</legend>
+        <div class="pure-control-group">
+            <select name="name"  required class="pure-input-1">
+                <optgroup label="{{title}}">
+                    {{#endpoints}}
+                        <option {{#selected}}selected{{/selected}}{{#selected}}{{/selected}} value="{{name}}">{{name}}</option>
+                    {{/endpoints}}
+                </optgroup>
+            </select>
+        </div>
+        <div class="pure-control-group">
+            <label>
+                URI:
+                <input name="uri" type="text" class="pure-input-1" value="{{selectedUri.uri}}"/>
+            </label>
+        </div>
+    </fieldset>
+    <button type="submit" class="primary-button pure-button">Save</button>
+</form>

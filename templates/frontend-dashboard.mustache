@@ -1,16 +1,16 @@
 {{> header}}
 
-<h2>{{name}} Automated Benchmark Tests</h2>
-<div id="{{type}}-list"></div>
+<h2>Frontend Automated Benchmark Tests</h2>
+<div id="frontend-list"></div>
 
 <div>
     <button id="runTest" type="submit" class="primary-button pure-button">Run</button>
-    <a class="primary-button pure-button" href="/{{type}}/run">Run and generate report</a>
+    <a class="primary-button pure-button" href="/frontend/run">Run and generate report</a>
 </div>
 
 <script>
-    let table = new Tabulator("#{{type}}-list", {
-        ajaxURL: '/{{type}}/list',
+    let table = new Tabulator("#frontend-list", {
+        ajaxURL: '/frontend/list',
         ajaxProgressiveLoadDelay: 200,
         layout: "fitColumns",
         index: "name",
@@ -38,7 +38,7 @@
                 },
                 cellClick: function (e, cell) {
                     let data = cell.getData();
-                    let editUri = '/{{type}}?name=' + data.name;
+                    let editUri = '/frontend?name=' + data.name;
 
                     window.location.assign(editUri);
                 },
@@ -53,7 +53,7 @@
 
                     let data = cell.getData();
 
-                    axios.delete('/{{type}}', {params: {name: data.name}})
+                    axios.delete('/frontend', {params: {name: data.name}})
                             .then(res => {
                                 console.log(res);
                                 if (res.status === 200) {
@@ -80,7 +80,7 @@
             "status": 'In Progress',
             "responseTime": "..."
         }]);
-        await axios.get('/{{type}}/benchmark', {params: {name: item.name}})
+        await axios.get('/frontend/benchmark', {params: {name: item.name}})
                 .then(function (response) {
                     table.updateData([{
                         "name": item.name,
@@ -108,11 +108,21 @@
 <h2>{{formTitle}}</h2>
 <form action="" method="post" class="pure-form pure-form-stacked">
     <fieldset>
+<!--        <div class="pure-control-group">-->
+<!--            <label>-->
+<!--                Name:-->
+<!--                <input name="name" type="text" class="pure-input-1" value="{{selectedUri.name}}"/>-->
+<!--            </label>-->
+<!--        </div>-->
+        <legend>Type</legend>
         <div class="pure-control-group">
-            <label>
-                Name:
-                <input name="name" type="text" class="pure-input-1" value="{{selectedUri.name}}"/>
-            </label>
+            <select name="name" required class="pure-input-1">
+                    <optgroup label="{{title}}">
+                        {{#endpoints}}
+                            <option value="frontend">Frontend</option>
+                        {{/endpoints}}
+                    </optgroup>
+            </select>
         </div>
         <div class="pure-control-group">
             <label>

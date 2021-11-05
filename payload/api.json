@@ -1,0 +1,132 @@
+{
+  "Add to cart": {
+    "requireAuth": true,
+    "config": {
+      "method": "post",
+      "data": {
+        "type": "items",
+        "attributes": {
+          "sku": "041498248932",
+          "quantity": 1,
+          "idPromotionalItem": "string",
+          "productOfferReference": "041498248932_474-001",
+          "merchantReference": "474-001",
+          "salesUnit": {
+            "id": 0,
+            "amount": 55
+          },
+          "productOptions": [
+            {}
+          ],
+          "isReplaceable": true
+        }
+      }
+    }
+  },
+  "Checkout": {
+    "requireAuth": true,
+    "config": {
+      "method": "post",
+      "data": {
+        "type": "checkout",
+        "attributes": {
+          "customer": {
+            "firstName": "Paul",
+            "lastName": "Rosenberg",
+            "gender": "Male",
+            "salutation": "Mr",
+            "email": "test@gmail.com",
+            "dateOfBirth": "1957-10-23",
+            "phone": "1 800-123-0000"
+          },
+          "idCart": "{{cartId}}",
+          "billingAddress": {
+            "salutation": "Mr",
+            "firstName": "Paul",
+            "lastName": "Rosenberg",
+            "address1": "203 Fifth Ave",
+            "address2": "17th floor",
+            "address3": "Office 1716",
+            "zipCode": "10013",
+            "city": "New York",
+            "iso2Code": "US",
+            "company": "Spryker",
+            "phone": "1 800-123-0000",
+            "isDefaultBilling": true,
+            "isDefaultShipping": true,
+            "regionIso2Code": "US-CA"
+          },
+          "shippingAddress": {
+            "salutation": "Mr",
+            "firstName": "Paul",
+            "lastName": "Rosenberg",
+            "address1": "203 Fifth Ave",
+            "address2": "17th floor",
+            "address3": "Office 1716",
+            "zipCode": "10013",
+            "city": "New York",
+            "iso2Code": "US",
+            "company": "Spryker",
+            "phone": "1 800-123-0000",
+            "isDefaultBilling": true,
+            "isDefaultShipping": true,
+            "regionIso2Code": "US-CA"
+          },
+          "payments": [
+            {
+              "paymentProviderName": "DummyPayment",
+              "paymentMethodName": "Invoice"
+            }
+          ],
+          "shipment": {
+            "idShipmentMethod": 3
+          },
+          "shipments": [
+            {
+              "shippingAddress": {
+                "salutation": "Mr",
+                "firstName": "Paul",
+                "lastName": "Rosenberg",
+                "address1": "203 Fifth Ave",
+                "address2": "17th floor",
+                "address3": "Office 1716",
+                "zipCode": "10013",
+                "city": "New York",
+                "iso2Code": "US",
+                "company": "Spryker",
+                "phone": "1 800-123-0000",
+                "isDefaultBilling": true,
+                "isDefaultShipping": true,
+                "regionIso2Code": "US-CA"
+              },
+              "items": [
+                "string"
+              ],
+              "idShipmentMethod": 3,
+              "requestedDeliveryDate": "2022-09-19"
+            }
+          ],
+          "cartNote": "string"
+        }
+      }
+    }
+  },
+  "Catalog search product offers": {
+    "requireAuth": false,
+    "config": {
+      "method": "get",
+      "headers": {
+        "Merchant-Reference": "474-001"
+      },
+      "params": {
+        "q": "orange"
+      }
+    }
+  },
+  "PDP": {
+    "requireAuth": false,
+    "config": {
+      "method": "get"
+    }
+  }
+}

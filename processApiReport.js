@@ -21,10 +21,12 @@ axios.interceptors.response.use(function (response) {
 const frontendUriList = JSON.parse(process.argv[2]);
 const reportPath = process.argv[3];
 const report = {};
+const accessToken = process.argv[4];
 
 processBenchmark(frontendUriList);
 
 async function processBenchmark(frontendUriList) {
+
     for (const uriItem of frontendUriList) {
         await performRequest(uriItem);
     }
@@ -34,13 +36,10 @@ async function processBenchmark(frontendUriList) {
     })
 }
 
-async function performRequest(item) {
-    console.log(item.name)
+async function performRequest(item, config) {
     await axios.get(item.uri,
         {
-            headers: {
-                "Merchant-Reference": '474-001',
-            }
+            ...config
         })
         .then(function (response) {
             report[item.name] = {

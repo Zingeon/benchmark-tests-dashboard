@@ -1,4 +1,4 @@
-const fastify = require('fastify')({ logger: true })
+const fastify = require('fastify')({logger: true})
 const path = require('path');
 const axios = require('axios');
 const crypto = require("crypto");
@@ -9,9 +9,11 @@ require('dotenv').config();
 
 const frontendBasicAuthUser = process.env.FRONTEND_BASIC_AUTH_USER;
 const frontendBasicAuthPassword = process.env.FRONTEND_BASIC_AUTH_PASSWORD;
+const apiCustomerAuthUsername = process.env.API_CUSTOMER_AUTH_USERNAME;
+const apiCustomerAuthPassword = process.env.API_CUSTOMER_AUTH_PASSWORD;
 
 axios.interceptors.request.use(function (config) {
-    config.metadata = { startTime: new Date()}
+    config.metadata = {startTime: new Date()}
     return config;
 }, function (error) {
     return Promise.reject(error);
@@ -56,6 +58,8 @@ const frontendUriStore = require('data-store')({path: process.cwd() + '/web/fron
 const apiUriStore = require('data-store')({path: process.cwd() + '/web/api_uri.json'});
 const frontendReportPidStore = require('data-store')({path: process.cwd() + '/web/frontend_report_pid.json'});
 const apiReportPidStore = require('data-store')({path: process.cwd() + '/web/api_report_pid.json'});
+const apiCustomerAuthStore = require('data-store')({path: process.cwd() + '/web/api_customer_auth.json'});
+const apiEndpointsConfigStore = require('data-store')({path: process.cwd() + '/payload/api.json'});
 
 const getFrontendUriList = () => {
     const items = new Map(Object.entries(frontendUriStore.get()));
@@ -92,6 +96,24 @@ const getApiReportPidList = () => {
 }
 
 let apiReportPidList = getApiReportPidList();
+
+const getApiCustomerAuthList = () => {
+    const items = new Map(Object.entries(apiCustomerAuthStore.get()));
+    items.forEach((value, name) => value.name = name);
+
+    return items;
+}
+
+let apiCustomerAuthList = getApiCustomerAuthList();
+
+const getApiEndpointsConfigList = () => {
+    const items = new Map(Object.entries(apiEndpointsConfigStore.get()));
+    items.forEach((value, name) => value.name = name);
+
+    return items;
+}
+
+let apiEndpointsConfigList = getApiEndpointsConfigList();
 
 fastify.post('/frontend', (req, reply) => {
     const name = req.body.name;
@@ -141,9 +163,7 @@ fastify.get('/frontend', async (req, reply) => {
         selectedUri = frontendUriList.get(uriName);
     }
 
-    reply.view('dashboard.mustache', {
-        type: 'frontend',
-        name: 'Frontend',
+    reply.view('frontend-dashboard.mustache', {
         projects: Array.from(frontendUriList.values()),
         selectedUri: selectedUri,
         formTitle: Object.entries(selectedUri).length === 0 ? 'Add frontend uri' : 'Edit frontend uri',
@@ -165,7 +185,42 @@ fastify.get('/api/run', async (req, reply) => {
     const reportId = crypto.randomBytes(16).toString("hex");
     const reportPath = process.cwd() + '/web/reports/api/report-' + reportId + '.json';
     fs.ensureFile(reportPath)
-    const child = child_process.fork('./processApiReport.js', [JSON.stringify(Array.from(apiUriList.values())), reportPath]);
+
+
+
+// console.log(apiEndpointsConfigList);
+    // if (!apiEndpointsConfigList.has(uriName)) {
+    //     reply.code(404);
+    //     reply.send('Unknown endpoint');
+    //     return;
+    // }
+    //
+    // let configEntry = apiEndpointsConfigList.get(uriName);
+    // let config = configEntry.config;
+    //
+    // if (config.requireAuth === true && !apiCustomerAuthList.has('accessToken')) {
+    //     reply.code(401);
+    //     reply.send('Unauthorized');
+    //     return;
+    // }
+    //
+    // const accessToken = apiCustomerAuthList.get('accessToken');
+    //
+    // if (config.requireAuth === true) {
+    //     config['headers'] = {
+    //         "Authorization": "Basic " + accessToken
+    //     }
+    // }
+
+
+
+
+
+
+
+    const response = await authenticateCustomer();
+    const accessToken = response.data.data.attributes.accessToken;
+    const child = child_process.fork('./processApiReport.js', [JSON.stringify(Array.from(apiUriList.values())), reportPath, accessToken]);
     apiReportPidStore.set(reportId, {pid: child.pid})
     apiReportPidList = getApiReportPidList()
 
@@ -198,7 +253,7 @@ fastify.get('/frontend/report/:reportId', async (req, reply) => {
     }
 
     const data = fs.readFileSync(reportPath, 'utf8')
-    if (!isJsonString(data) ) {
+    if (!isJsonString(data)) {
         reply.send({status: 'Corrupted data'});
         return;
     }
@@ -225,7 +280,7 @@ fastify.get('/api/report/:reportId', async (req, reply) => {
     }
 
     const data = fs.readFileSync(reportPath, 'utf8')
-    if (!isJsonString(data) ) {
+    if (!isJsonString(data)) {
         reply.send({status: 'Corrupted data'});
         return;
     }
@@ -251,7 +306,7 @@ fastify.get('/frontend/report/:reportId/status', async (req, reply) => {
         return;
     }
 
-    if (!isJsonString(data) ) {
+    if (!isJsonString(data)) {
         reply.send({status: 'Corrupted data'});
         return;
     }
@@ -274,7 +329,7 @@ fastify.get('/api/report/:reportId/status', async (req, reply) => {
         return;
     }
 
-    if (!isJsonString(data) ) {
+    if (!isJsonString(data)) {
         reply.send({status: 'Corrupted data'});
         return;
     }
@@ -284,14 +339,17 @@ fastify.get('/api/report/:reportId/status', async (req, reply) => {
 fastify.get('/api', async (req, reply) => {
     const uriName = req.query.name;
     let selectedUri = {};
+    const endpoints = Array.from(apiEndpointsConfigList.values());
 
     if (apiUriList.has(uriName)) {
         selectedUri = apiUriList.get(uriName);
+        for (let endpoint of endpoints) {
+            endpoint['selected'] = endpoint.name === selectedUri.name;
+        }
     }
 
-    reply.view('dashboard.mustache', {
-        type: 'api',
-        name: 'API',
+    reply.view('api-dashboard.mustache', {
+        endpoints: Array.from(apiEndpointsConfigList.values()),
         projects: Array.from(apiUriList.values()),
         selectedUri: selectedUri,
         formTitle: Object.entries(selectedUri).length === 0 ? 'Add API uri' : 'Edit API uri',
@@ -340,11 +398,32 @@ fastify.get('/api/benchmark', (req, reply) => {
         selectedUri = apiUriList.get(uriName);
     }
 
+    if (!apiEndpointsConfigList.has(uriName)) {
+        reply.code(404);
+        reply.send('Unknown endpoint');
+        return;
+    }
+
+    let configEntry = apiEndpointsConfigList.get(uriName);
+    let config = configEntry.config;
+
+    if (config.requireAuth === true && !apiCustomerAuthList.has('accessToken')) {
+        reply.code(401);
+        reply.send('Unauthorized');
+        return;
+    }
+
+    const accessToken = apiCustomerAuthList.get('accessToken');
+
+    if (config.requireAuth === true) {
+        config['headers'] = {
+            "Authorization": "Basic " + accessToken
+        }
+    }
+
     axios.get(selectedUri.uri,
         {
-            headers: {
-                "Merchant-Reference": '474-001',
-            }
+            ...config
         })
         .then(function (response) {
             reply.code(200);
@@ -353,6 +432,41 @@ fastify.get('/api/benchmark', (req, reply) => {
         .catch(function (error) {
             console.log(error);
         });
+});
+
+async function authenticateCustomer() {
+    return await axios.post('https://api.au.qa.commerce.ci-aldi.com/access-tokens',
+        {
+            data: {
+                "type": "access-tokens",
+                "attributes": {
+                    "username": apiCustomerAuthUsername,
+                    "password": apiCustomerAuthPassword
+                }
+            }
+        }
+    )
+        .then(function (response) {
+            apiCustomerAuthStore.set('accessToken', response.data.data.attributes.accessToken)
+            apiCustomerAuthList = getApiCustomerAuthList()
+            return response;
+        })
+        .catch(function (error) {
+            console.log(error);
+        });
+}
+
+fastify.post('/frontend/customer/access-token', async (req, reply) => {
+    await authenticateCustomer()
+        .then(function (response) {
+            reply.code(200);
+            reply.send({'accessToken': response.data.data.attributes.accessToken});
+        })
+        .catch(function (error) {
+            reply.code(401);
+            reply.send('Failed to authenticate user.');
+        });
+
 });
 
 fastify.delete('/frontend', (req, reply) => {
